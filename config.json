@@ -1,0 +1,9 @@
+{
+  "rabbitmq": {
+    "host":	"localhost",
+    "port":	"5672",
+    "frames_queue": "frames",
+    "detections_queue": "detections"
+  },
+  "root_folder": "../../../../data"
+}
