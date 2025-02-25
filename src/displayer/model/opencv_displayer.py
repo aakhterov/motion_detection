@@ -1,3 +1,5 @@
+from typing import List
+
 import cv2
 import pika
 import json
@@ -32,6 +34,17 @@ class OpenCVDisplayer(IDisplayer):
         channel.queue_declare(queue=queue, durable=True)
         return connection, channel
 
+    def __blur_rectangle(self, frame, top_left, bottom_right) -> List[List[int]]:
+        x1, y1 = top_left
+        x2, y2 = bottom_right
+        roi = frame[y1:y2, x1:x2]
+
+        blurred_roi = cv2.GaussianBlur(roi, (21, 21), 0)
+
+        frame[y1:y2, x1:x2] = blurred_roi
+
+        return frame
+
     def play(self, buffer_size=10, fps=25):
         connection, detections_queue = self.__initialize_rabbitmq_connection(self.detections_queue_name)
         detections_queue.queue_declare(queue=self.detections_queue_name, durable=True)
@@ -62,10 +75,10 @@ class OpenCVDisplayer(IDisplayer):
                         for contour in contours:
                             x, y, w, h = contour
                             cv2.rectangle(frame_to_show, (x, y), (x + w, y + h), (0, 255, 0), 2)
+                            frame_to_show = self.__blur_rectangle(frame_to_show, (x, y), (x + w, y + h))
                     cv2.imshow('Playback', frame_to_show)
                     next_frame_time += delay
 
-                    # Allow time for frame display
                     if cv2.waitKey(1) & 0xFF == ord('q'):
                         detections_queue.stop_consuming()
                         return
