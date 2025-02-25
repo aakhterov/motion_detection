@@ -44,6 +44,8 @@ class OpenCVDisplayer(IDisplayer):
 
             message = json.loads(body)
             frame_path = message.get('frame_path')
+            motion_detected = message.get('motion_detected')
+            contours = message.get('contours')
 
             frame = cv2.imread(frame_path)
             if frame is None:
@@ -56,6 +58,10 @@ class OpenCVDisplayer(IDisplayer):
             if len(buffer) >= buffer_size:
                 if time.time() >= next_frame_time:
                     frame_to_show = buffer.popleft()
+                    if motion_detected:
+                        for contour in contours:
+                            x, y, w, h = contour
+                            cv2.rectangle(frame_to_show, (x, y), (x + w, y + h), (0, 255, 0), 2)
                     cv2.imshow('Playback', frame_to_show)
                     next_frame_time += delay
 

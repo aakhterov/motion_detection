@@ -3,6 +3,7 @@ import pika
 import json
 import os
 import logging
+import imutils
 
 from src.config import Configuration
 from src.detector.interface.detector import IDetector
@@ -47,18 +48,36 @@ class OpenCVDetector(IDetector):
 
             nonlocal previous_frame, previous_frame_path
             if previous_frame is not None:
+
                 gray_a = cv2.cvtColor(previous_frame, cv2.COLOR_BGR2GRAY)
                 gray_b = cv2.cvtColor(current_frame, cv2.COLOR_BGR2GRAY)
+
                 diff_frame = cv2.absdiff(gray_a, gray_b)
-                _, motion_frame = cv2.threshold(diff_frame, 25, 255, cv2.THRESH_BINARY)
-                motion_intensity = cv2.countNonZero(motion_frame)
-                motion_detected = motion_intensity > 500
+                _, thresh = cv2.threshold(diff_frame, 25, 255, cv2.THRESH_BINARY)
+
+                thresh = cv2.dilate(thresh, None, iterations=2)
+                cnts = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL,
+                                        cv2.CHAIN_APPROX_SIMPLE)
+                cnts = imutils.grab_contours(cnts)
+                contours = []
+                for c in cnts:
+                    # if the contour is too small, ignore it
+                    if cv2.contourArea(c) < 500:
+                        continue
+                    (x, y, w, h) = cv2.boundingRect(c)
+                    contours.append((x, y, w, h))
+                    # cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+                #
+                # motion_intensity = cv2.countNonZero(motion_frame)
+                # motion_detected = motion_intensity > 500
+
+                logging.info(f"Motion detected in frame {frame_number} with {len(contours)} contours: {contours}")
 
                 motion_data = {
                     'frame_number': frame_number,
                     'frame_path': frame_path,
-                    'motion_detected': motion_detected,
-                    'motion_intensity': motion_intensity
+                    'motion_detected': bool(contours),
+                    'contours': contours
                 }
 
                 detections_queue.basic_publish(
@@ -68,8 +87,9 @@ class OpenCVDetector(IDetector):
                     properties=pika.BasicProperties(delivery_mode=2)
                 )
 
-            previous_frame = current_frame
-            previous_frame_path = frame_path
+            if os.path.split(frame_path)[1] == "frame_000000.jpg":
+                previous_frame = current_frame
+                previous_frame_path = frame_path
 
             ch.basic_ack(delivery_tag=method.delivery_tag)
 
