@@ -14,6 +14,26 @@ RABBITMQ_USER = os.getenv("RABBITMQ_USER", "guest")
 RABBITMQ_PASS = os.getenv("RABBITMQ_PASS", "guest")
 
 class OpenCVDetector(IDetector):
+    """
+    Motion detector implementation using OpenCV and RabbitMQ.
+
+    This class processes video frames from a RabbitMQ queue to detect motion by comparing
+    consecutive frames using OpenCV image processing techniques. When motion is detected,
+    the results are published to a separate RabbitMQ queue.
+
+    Attributes:
+        frames_queue_name (str): Name of the RabbitMQ queue for receiving frames
+        detections_queue_name (str): Name of the RabbitMQ queue for publishing detections
+        host (str): RabbitMQ server hostname
+        port (int): RabbitMQ server port number
+
+    The motion detection algorithm:
+    - Converts frames to grayscale
+    - Calculates absolute difference between consecutive frames
+    - Applies thresholding and dilation
+    - Finds and filters contours to identify motion regions
+    """
+
     def __init__(self, configuration: Configuration):
         self.frames_queue_name = configuration.rabbitmq.get("frames_queue", DEFAULT_FRAMES_QUEUE)
         self.detections_queue_name = configuration.rabbitmq.get("detections_queue", DEFAULT_DETECTION_QUEUE)
@@ -21,6 +41,20 @@ class OpenCVDetector(IDetector):
         self.port = configuration.rabbitmq.get("port", 5672)
 
     def __initialize_rabbitmq_connection(self, queue: str):
+        """
+        Initialize a connection to RabbitMQ and create a channel.
+
+        Args:
+            queue (str): Name of the queue to declare
+
+        Returns:
+            tuple: (connection, channel) - The RabbitMQ connection and channel objects
+
+        The connection is established using the configured host and port with the following settings:
+        - Heartbeat disabled (set to 0)
+        - Uses plain credentials from RABBITMQ_USER and RABBITMQ_PASS environment variables
+        - Creates a durable queue with the specified name
+        """
         connection =  pika.BlockingConnection(
             pika.ConnectionParameters(host=self.host,
                                       port=self.port,
@@ -33,6 +67,33 @@ class OpenCVDetector(IDetector):
         return connection, channel
 
     def process_images(self):
+        """
+        Process images from RabbitMQ queue for motion detection.
+
+        This method:
+        1. Establishes connections to RabbitMQ for frames and detections queues
+        2. Sets up a callback to process incoming frame messages
+        3. For each frame:
+           - Reads the image from disk
+           - Compares with previous frame to detect motion using OpenCV
+           - Identifies motion contours above minimum size threshold
+           - Publishes motion detection results to detections queue
+        4. Handles graceful shutdown on keyboard interrupt
+
+        The motion detection:
+        - Converts frames to grayscale
+        - Calculates absolute difference between consecutive frames
+        - Applies thresholding and dilation
+        - Finds and filters contours to identify motion regions
+
+        Messages published to detection queue include:
+        - Frame number and path
+        - Boolean indicating if motion was detected
+        - List of contour coordinates (x,y,w,h) for motion regions
+
+        Raises:
+            ValueError: If unable to read an image file
+        """
         connection, frames_queue = self.__initialize_rabbitmq_connection(self.frames_queue_name)
         _, detections_queue = self.__initialize_rabbitmq_connection(self.detections_queue_name)
 
@@ -66,12 +127,6 @@ class OpenCVDetector(IDetector):
                         continue
                     (x, y, w, h) = cv2.boundingRect(c)
                     contours.append((x, y, w, h))
-                    # cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
-                #
-                # motion_intensity = cv2.countNonZero(motion_frame)
-                # motion_detected = motion_intensity > 500
-
-                # logging.info(f"Motion detected in frame {frame_number} with {len(contours)} contours: {contours}")
 
                 motion_data = {
                     'frame_number': frame_number,

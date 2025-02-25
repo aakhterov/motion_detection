@@ -13,6 +13,20 @@ RABBITMQ_USER = os.getenv("RABBITMQ_USER", "guest")
 RABBITMQ_PASS = os.getenv("RABBITMQ_PASS", "guest")
 
 class OpenCVStreamer(IStreamer):
+    """
+    A video frame extraction and streaming class that processes videos using OpenCV and publishes frames to RabbitMQ.
+
+    This class implements the IStreamer interface to process videos by:
+    - Extracting individual frames from a video file or URL using OpenCV
+    - Saving frames as JPEG images to a unique output directory
+    - Publishing frame metadata and file paths to a RabbitMQ queue
+
+    Attributes:
+        root_folder (str): Base directory where frame images will be saved
+        queue (str): Name of the RabbitMQ queue to publish frame data
+        host (str): Hostname of the RabbitMQ server
+        port (int): Port number of the RabbitMQ server
+    """
 
     def __init__(self, configuration: Configuration):
         self.root_folder = configuration.root_folder
@@ -20,7 +34,13 @@ class OpenCVStreamer(IStreamer):
         self.host = configuration.rabbitmq.get("host", "localhost")
         self.port = configuration.rabbitmq.get("port", 5672)
 
-    def __initialize_rabbitmq_connection(self):
+    def __initialize_rabbitmq_connection(self) -> pika.BlockingConnection:
+        """
+        Initialize and return a blocking connection to RabbitMQ server.
+
+        Returns:
+            pika.BlockingConnection: A blocking connection to RabbitMQ using the configured host, port and credentials.
+        """
         return pika.BlockingConnection(
             pika.ConnectionParameters(host=self.host,
                                       port=self.port,
@@ -30,7 +50,25 @@ class OpenCVStreamer(IStreamer):
         )
 
     def process_url(self, video_url: str):
+        """
+        Process a video from the given URL by extracting frames and publishing them to RabbitMQ.
 
+        This method:
+        1. Creates a unique output folder for the video frames
+        2. Opens the video using OpenCV
+        3. Extracts frames sequentially from the video
+        4. Saves each frame as a JPEG image
+        5. Publishes a JPEG image path as well as frame metadata to RabbitMQ queue
+
+        Args:
+            video_url (str): URL or path of the video to process
+
+        Raises:
+            ValueError: If the video cannot be opened from the provided URL
+
+        Returns:
+            None
+        """
         logging.info(f"Processing video from {video_url}")
 
         output_folder = os.path.join(self.root_folder, str(uuid4()))

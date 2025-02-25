@@ -3,7 +3,6 @@ from abc import ABC, abstractmethod
 class IDetector(ABC):
     """
     Interface to detect motions.
-    TODO
     """
 
     @abstractmethod

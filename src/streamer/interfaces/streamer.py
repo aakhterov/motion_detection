@@ -3,7 +3,6 @@ from abc import ABC, abstractmethod
 class IStreamer(ABC):
     """
     Interface to handle video files.
-    TODO
     """
 
     @abstractmethod
