@@ -71,7 +71,7 @@ class OpenCVDetector(IDetector):
                 # motion_intensity = cv2.countNonZero(motion_frame)
                 # motion_detected = motion_intensity > 500
 
-                logging.info(f"Motion detected in frame {frame_number} with {len(contours)} contours: {contours}")
+                # logging.info(f"Motion detected in frame {frame_number} with {len(contours)} contours: {contours}")
 
                 motion_data = {
                     'frame_number': frame_number,
