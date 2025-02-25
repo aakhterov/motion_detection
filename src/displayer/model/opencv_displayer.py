@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import List
 
 import cv2
@@ -45,6 +46,10 @@ class OpenCVDisplayer(IDisplayer):
 
         return frame
 
+    def __display_time(self, frame):
+        text = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
+        return cv2.putText(frame, text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
+
     def play(self, buffer_size=10, fps=25):
         connection, detections_queue = self.__initialize_rabbitmq_connection(self.detections_queue_name)
         detections_queue.queue_declare(queue=self.detections_queue_name, durable=True)
@@ -76,6 +81,7 @@ class OpenCVDisplayer(IDisplayer):
                             x, y, w, h = contour
                             cv2.rectangle(frame_to_show, (x, y), (x + w, y + h), (0, 255, 0), 2)
                             frame_to_show = self.__blur_rectangle(frame_to_show, (x, y), (x + w, y + h))
+                    frame_to_show = self.__display_time(frame_to_show)
                     cv2.imshow('Playback', frame_to_show)
                     next_frame_time += delay
 
