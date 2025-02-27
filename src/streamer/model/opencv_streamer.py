@@ -29,7 +29,7 @@ class OpenCVStreamer(IStreamer):
     """
 
     def __init__(self, configuration: Configuration):
-        self.root_folder = configuration.root_folder
+        self.root_folder = os.path.join(os.getcwd(), configuration.root_folder)
         self.queue = configuration.rabbitmq.get("frames_queue", DEFAULT_QUEUE)
         self.host = configuration.rabbitmq.get("host", "localhost")
         self.port = configuration.rabbitmq.get("port", 5672)
