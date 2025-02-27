@@ -9,4 +9,38 @@ services:
         environment:
             RABBITMQ_DEFAULT_USER: guest
             RABBITMQ_DEFAULT_PASS: guest
+        healthcheck:
+            test: rabbitmq-diagnostics -q ping
+            interval: 30s
+            timeout: 10s
+            retries: 5
+            start_period: 20s
+
+    opencv_streamer:
+        build:
+            context: .
+            dockerfile: streamer.Dockerfile
+        container_name: opencv_streamer
+        ports:
+            -   "8000:8000"
+        volumes:
+            - ./data:/app/data
+        environment:
+            RABBITMQ_USER: guest
+            RABBITMQ_PASS: guest
+
+    opencv_detector:
+        build:
+            context: .
+            dockerfile: detector.Dockerfile
+        container_name: opencv_detector
+        volumes:
+            - ./data:/app/data
+        environment:
+            RABBITMQ_USER: guest
+            RABBITMQ_PASS: guest
+        restart: on-failure
+        depends_on:
+            rabbitmq:
+                condition: service_healthy
 

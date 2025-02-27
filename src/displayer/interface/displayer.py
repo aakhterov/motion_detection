@@ -6,5 +6,5 @@ class IDisplayer(ABC):
     """
 
     @abstractmethod
-    def play(self, buffer_size=10, fps=25):
+    def play(self):
         raise NotImplementedError("Subclasses must implement play method")
